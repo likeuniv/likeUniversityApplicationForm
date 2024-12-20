@@ -1,0 +1,437 @@
+In above code, i want to integrate this with slaesforce using oauth2.o connected app. Can you help me with the integration code 
+To integrate your HTML form with Salesforce using OAuth 2.0 and a connected app, you need to follow these steps:
+
+Create a Connected App in Salesforce:
+
+Go to Salesforce Setup.
+In the Quick Find box, type "App Manager".
+Click "New Connected App".
+Fill in the required fields, especially the OAuth settings. Make sure to enable OAuth settings and specify the callback URL.
+Select the OAuth scopes you need (e.g., Full access).
+Get OAuth 2.0 Credentials:
+
+After creating the connected app, note down the Consumer Key and Consumer Secret.
+Implement OAuth 2.0 Flow:
+
+You'll need to redirect the user to the Salesforce authorization URL.
+After the user authorizes your app, they will be redirected back to your specified callback URL with an authorization code.
+Exchange the authorization code for an access token.
+Make API Requests:
+
+Use the access token to make API requests to Salesforce.
+Here is a basic example of how to integrate OAuth 2.0 with your HTML form using JavaScript and PHP (or any server-side language of your choice).
+
+HTML and JavaScript
+HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application | Like University</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" rel="stylesheet">
+    <style>
+        /* Your existing styles */
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#00NGA00000UJCNw').datepicker({
+                format: 'dd/mm/yyyy',
+                changeMonth: true,
+                changeYear: true,
+                autoclose: true,
+                todayHighlight: true,
+                clearBtn: true
+            });
+        });
+
+        function formSubmit() {
+            // Existing validation logic
+            // Redirect to the server-side script that handles OAuth
+            window.location.href = 'oauth_redirect.php';
+            return false;
+        }
+    </script>
+</head>
+<body>
+    <div class="container-fluid">
+        <div id="header" class="d-flex justify-content-end align-items-center">
+            <div class="btn-group-vertical mr-3" role="group" aria-label="Basic example">
+                <a class="btn btn-primary" href="https://sunrichglobal-dev-ed.develop.my.site.com/management" role="button">Management Login</a>
+                <a class="btn btn-primary" href="https://sunrichglobal-dev-ed.develop.my.site.com/professors" role="button">Professor Login</a>
+            </div>
+        </div>
+        <div class="marquee my-1">
+            <p>Embark on your journey of knowledge, our gates are wide open. Seize the moment, and submit your application today.</p>
+        </div>
+        <div id="formbody" class="d-flex justify-content-center align-items-center">
+            <div id="cont" class="p-3 rounded font-weight-normal">
+                <div>
+                    <p class="h2 text-center">APPLICATION FORM</p>
+                </div>
+                <div class="info p-1">
+                    <p><span style="color:#d00;font-weight: 600;">*</span> = required</p>
+                </div>
+                <form onsubmit="return formSubmit();" autocomplete="off">
+                    <!-- Form fields here -->
+                    <input type="submit" name="submit" class="btn btn-success">
+                </form>
+            </div>
+        </div>
+        <div id="footer" class="mt-1">
+            <p class="copyright ml-2">&copy; 2024 Like University. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+Public code references from 18 repositories
+PHP (oauth_redirect.php)
+PHP
+<?php
+session_start();
+
+// Salesforce OAuth 2.0 credentials
+$client_id = 'your_consumer_key';
+$client_secret = 'your_consumer_secret';
+$redirect_uri = 'your_callback_url';
+$authorization_url = 'https://login.salesforce.com/services/oauth2/authorize';
+$token_url = 'https://login.salesforce.com/services/oauth2/token';
+
+// Step 1: Redirect to Salesforce authorization URL
+if (!isset($_GET['code'])) {
+    $auth_url = $authorization_url . '?response_type=code&client_id=' . $client_id . '&redirect_uri=' . urlencode($redirect_uri);
+    header('Location: ' . $auth_url);
+    exit();
+}
+
+// Step 2: Exchange authorization code for access token
+if (isset($_GET['code'])) {
+    $code = $_GET['code'];
+    $params = [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client_id,
+        'client_secret' => $client_secret,
+        'redirect_uri' => $redirect_uri,
+        'code' => $code
+    ];
+
+    $ch = curl_init($token_url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $response_data = json_decode($response, true);
+
+    if (isset($response_data['access_token'])) {
+        $_SESSION['access_token'] = $response_data['access_token'];
+        $_SESSION['instance_url'] = $response_data['instance_url'];
+        header('Location: form_submission.php');
+        exit();
+    } else {
+        echo 'Error fetching access token';
+        exit();
+    }
+}
+?>
+1 vulnerability detected
+Public code references from 18 repositories
+PHP (form_submission.php)
+PHP
+<?php
+session_start();
+
+if (!isset($_SESSION['access_token'])) {
+    header('Location: oauth_redirect.php');
+    exit();
+}
+
+// Salesforce instance URL and access token
+$instance_url = $_SESSION['instance_url'];
+$access_token = $_SESSION['access_token'];
+
+// Salesforce API endpoint to create a Lead
+$endpoint = $instance_url . '/services/data/v54.0/sobjects/Lead/';
+
+// Prepare lead data (capture the form data)
+$lead_data = [
+    'FirstName' => $_POST['first_name'],
+    'LastName' => $_POST['last_name'],
+    'Company' => $_POST['company'],
+    'Email' => $_POST['email'],
+    'MobilePhone' => $_POST['mobile'],
+    'Custom_Field__c' => 'Custom Value' // Add more fields as needed
+];
+
+$ch = curl_init($endpoint);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Authorization: Bearer ' . $access_token,
+    'Content-Type: application/json'
+]);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($lead_data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+
+$response_data = json_decode($response, true);
+
+if (isset($response_data['id'])) {
+    echo 'Lead created successfully. Lead ID: ' . $response_data['id'];
+} else {
+    echo 'Error creating lead';
+}
+?>
+Public code references from 18 repositories
+Explanation:
+HTML and JavaScript:
+Added a JavaScript function formSubmit that redirects to the oauth_redirect.php script for handling OAuth 2.0 flow.
+PHP (oauth_redirect.php):
+Handles the OAuth 2.0 authorization flow by redirecting the user to Salesforce and exchanging the authorization code for an access token.
+PHP (form_submission.php):
+Uses the access token to make an API request to Salesforce to create a new Lead with the form data.
+Note: Replace placeholders like your_consumer_key, your_consumer_secret, and your_callback_url with actual values from your Salesforce connected app.
+
+This should help you get started with integrating your form with Salesforce using OAuth 2.0. Make sure to handle errors and edge cases as needed for your application's requirements.
+
+sorry i am unware of php can use use other language like js or salesforce apex
+Sure! Here is how you can integrate your HTML form with Salesforce using JavaScript and Salesforce Apex.
+
+Steps:
+Create a Connected App in Salesforce:
+
+Go to Salesforce Setup.
+In the Quick Find box, type "App Manager".
+Click "New Connected App".
+Fill in the required fields, especially the OAuth settings. Make sure to enable OAuth settings and specify the callback URL.
+Select the OAuth scopes you need (e.g., Full access).
+Get OAuth 2.0 Credentials:
+
+After creating the connected app, note down the Consumer Key and Consumer Secret.
+Implement OAuth 2.0 Flow:
+
+Redirect the user to the Salesforce authorization URL.
+After the user authorizes your app, they will be redirected back to your specified callback URL with an authorization code.
+Exchange the authorization code for an access token.
+Use the Access Token to Make API Requests:
+
+Use the access token to make API requests to Salesforce.
+HTML and JavaScript
+HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application | Like University</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" rel="stylesheet">
+    <style>
+        /* Your existing styles */
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#00NGA00000UJCNw').datepicker({
+                format: 'dd/mm/yyyy',
+                changeMonth: true,
+                changeYear: true,
+                autoclose: true,
+                todayHighlight: true,
+                clearBtn: true
+            });
+        });
+
+        function formSubmit() {
+            // Existing validation logic
+            // Redirect to the server-side script that handles OAuth
+            window.location.href = 'oauth_redirect.html';
+            return false;
+        }
+    </script>
+</head>
+<body>
+    <div class="container-fluid">
+        <div id="header" class="d-flex justify-content-end align-items-center">
+            <div class="btn-group-vertical mr-3" role="group" aria-label="Basic example">
+                <a class="btn btn-primary" href="https://sunrichglobal-dev-ed.develop.my.site.com/management" role="button">Management Login</a>
+                <a class="btn btn-primary" href="https://sunrichglobal-dev-ed.develop.my.site.com/professors" role="button">Professor Login</a>
+            </div>
+        </div>
+        <div class="marquee my-1">
+            <p>Embark on your journey of knowledge, our gates are wide open. Seize the moment, and submit your application today.</p>
+        </div>
+        <div id="formbody" class="d-flex justify-content-center align-items-center">
+            <div id="cont" class="p-3 rounded font-weight-normal">
+                <div>
+                    <p class="h2 text-center">APPLICATION FORM</p>
+                </div>
+                <div class="info p-1">
+                    <p><span style="color:#d00;font-weight: 600;">*</span> = required</p>
+                </div>
+                <form onsubmit="return formSubmit();" autocomplete="off">
+                    <!-- Form fields here -->
+                    <input type="submit" name="submit" class="btn btn-success">
+                </form>
+            </div>
+        </div>
+        <div id="footer" class="mt-1">
+            <p class="copyright ml-2">&copy; 2024 Like University. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+Public code references from 20 repositories
+JavaScript (oauth_redirect.html)
+This HTML page will handle the OAuth redirection and token exchange.
+
+HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Redirect</title>
+    <script>
+        const clientId = 'your_consumer_key';
+        const clientSecret = 'your_consumer_secret';
+        const redirectUri = 'your_callback_url';
+        const authorizationUrl = 'https://login.salesforce.com/services/oauth2/authorize';
+        const tokenUrl = 'https://login.salesforce.com/services/oauth2/token';
+
+        // Step 1: Redirect to Salesforce authorization URL
+        function redirectToSalesforceAuth() {
+            const authUrl = `${authorizationUrl}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+            window.location.href = authUrl;
+        }
+
+        // Step 2: Exchange authorization code for access token
+        async function exchangeCodeForToken(code) {
+            const response = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    redirect_uri: redirectUri,
+                    code: code
+                })
+            });
+
+            const data = await response.json();
+            if (data.access_token) {
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('instance_url', data.instance_url);
+                window.location.href = 'form_submission.html';
+            } else {
+                console.error('Error fetching access token', data);
+            }
+        }
+
+        // Check if we have an authorization code
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+
+        if (code) {
+            exchangeCodeForToken(code);
+        } else {
+            redirectToSalesforceAuth();
+        }
+    </script>
+</head>
+<body>
+    <p>Redirecting to Salesforce...</p>
+</body>
+</html>
+2 vulnerabilities detected
+Client-Side URL Redirection
+
+Allowing unvalidated redirection based on user-specified URLs
+
+Hardcoded Credentials
+
+Embedding credentials in source code risks unauthorized access
+
+Public code references from 20 repositories
+JavaScript (form_submission.html)
+This HTML page will handle form submission to Salesforce using the access token.
+
+HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Submission</title>
+    <script>
+        async function submitForm() {
+            const accessToken = localStorage.getItem('access_token');
+            const instanceUrl = localStorage.getItem('instance_url');
+
+            if (!accessToken || !instanceUrl) {
+                console.error('Missing access token or instance URL');
+                return;
+            }
+
+            const endpoint = `${instanceUrl}/services/data/v54.0/sobjects/Lead/`;
+
+            // Prepare lead data (capture the form data)
+            const leadData = {
+                FirstName: 'John', // Replace with actual form data
+                LastName: 'Doe', // Replace with actual form data
+                Company: 'Company', // Replace with actual form data
+                Email: 'john.doe@example.com', // Replace with actual form data
+                MobilePhone: '1234567890' // Replace with actual form data
+                // Add more fields as needed
+            };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(leadData)
+            });
+
+            const data = await response.json();
+
+            if (data.id) {
+                console.log('Lead created successfully. Lead ID:', data.id);
+            } else {
+                console.error('Error creating lead', data);
+            }
+        }
+
+        window.onload = submitForm;
+    </script>
+</head>
+<body>
+    <p>Submitting form data to Salesforce...</p>
+</body>
+</html>
+2 vulnerabilities detected
+Public code references from 20 repositories
+Explanation:
+HTML and JavaScript:
+Added a JavaScript function formSubmit that redirects to the oauth_redirect.html script for handling OAuth 2.0 flow.
+JavaScript (oauth_redirect.html):
+Handles the OAuth 2.0 authorization flow by redirecting the user to Salesforce and exchanging the authorization code for an access token.
+JavaScript (form_submission.html):
+Uses the access token to make an API request to Salesforce to create a new Lead with the form data.
+Note: Replace placeholders like your_consumer_key, your_consumer_secret, and your_callback_url with actual values from your Salesforce connected app.
+
+This should help you get started with integrating your form with Salesforce using OAuth 2.0 and JavaScript. Make sure to handle errors and edge cases as needed for your application's requirements.
+
